@@ -1,0 +1,5 @@
+[build]
+buildCommand = "prisma generate"
+
+[deploy]
+startCommand = "npm run worker"
