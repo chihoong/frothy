@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Better Auth core tables ─────────────────────────────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  surfSessions SurfSession[]
+  stravaToken  StravaToken?
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+}
+
+// ─── Strava OAuth tokens ──────────────────────────────────────────────────────
+
+model StravaToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  athleteId    Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  webhookSubId Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Surf data ────────────────────────────────────────────────────────────────
+
+model SurfSession {
+  id              String          @id @default(cuid())
+  userId          String
+  source          SessionSource
+  sourceId        String?
+  title           String?
+  startTime       DateTime
+  endTime         DateTime
+  durationSeconds Int
+  distanceMeters  Float
+  maxSpeedMs      Float
+  avgSpeedMs      Float
+  waveCount       Int             @default(0)
+  rawFileKey      String?
+  processingState ProcessingState @default(PENDING)
+  processingError String?
+  centerLat       Float?
+  centerLng       Float?
+  boundingBox     Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackpoints Trackpoint[]
+  waves       Wave[]
+
+  @@unique([userId, source, sourceId])
+  @@index([userId, startTime(sort: Desc)])
+}
+
+model Trackpoint {
+  id         BigInt      @id @default(autoincrement())
+  sessionId  String
+  recordedAt DateTime
+  lat        Float
+  lng        Float
+  altitudeM  Float?
+  speedMs    Float?
+  heartRate  Int?
+  session    SurfSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, recordedAt])
+}
+
+model Wave {
+  id              String      @id @default(cuid())
+  sessionId       String
+  waveNumber      Int
+  startTime       DateTime
+  endTime         DateTime
+  durationSeconds Float
+  distanceMeters  Float
+  maxSpeedMs      Float
+  avgSpeedMs      Float
+  bearing         Float?
+  startLat        Float
+  startLng        Float
+  endLat          Float
+  endLng          Float
+  session         SurfSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+enum SessionSource {
+  UPLOAD
+  STRAVA
+}
+
+enum ProcessingState {
+  PENDING
+  PROCESSING
+  COMPLETE
+  FAILED
+}
