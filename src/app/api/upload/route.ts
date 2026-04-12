@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(req: NextRequest) {
+  try {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -62,4 +63,9 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json({ sessionId: surfSession.id, status: "PENDING" });
+  } catch (err) {
+    const e = err as Error;
+    console.error("[upload] error:", e.stack ?? e);
+    return NextResponse.json({ error: e.message, stack: e.stack }, { status: 500 });
+  }
 }
