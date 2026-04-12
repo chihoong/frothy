@@ -13,36 +13,44 @@ export default async function AppLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen" style={{ fontFamily: "var(--font-mono), monospace" }}>
       {/* Sidebar */}
-      <aside className="hidden w-56 flex-shrink-0 flex-col border-r bg-gray-50 md:flex">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <span className="text-xl">🌊</span>
-          <span className="font-bold tracking-tight">Frothy</span>
+      <aside className="hidden w-52 flex-shrink-0 flex-col border-r border-border bg-background md:flex">
+        {/* Logo */}
+        <div className="flex h-12 items-center gap-2 border-b border-border px-4">
+          <span className="text-xs tracking-widest uppercase font-medium">FROTHY</span>
+          <span className="text-border text-xs">|</span>
+          <span className="text-xs tracking-wider text-muted-foreground uppercase">SFC</span>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+
+        {/* Nav */}
+        <nav className="flex flex-1 flex-col gap-px p-2 pt-3">
+          <p className="px-2 pb-1 text-[10px] tracking-widest uppercase text-muted-foreground/60">Navigation</p>
           {[
-            { href: "/dashboard", label: "Dashboard", icon: "📊" },
-            { href: "/sessions", label: "Sessions", icon: "🏄" },
-            { href: "/upload", label: "Upload GPX", icon: "📤" },
+            { href: "/dashboard", label: "Dashboard", code: "01" },
+            { href: "/sessions", label: "Sessions", code: "02" },
+            { href: "/upload", label: "Upload GPX", code: "03" },
           ].map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              className="group flex items-center gap-3 px-2 py-2 text-xs tracking-wide uppercase hover:bg-muted transition-colors border border-transparent hover:border-border"
             >
-              <span>{item.icon}</span>
-              {item.label}
+              <span className="text-muted-foreground text-[10px] font-light">{item.code}</span>
+              <span>{item.label}</span>
             </Link>
           ))}
         </nav>
-        <div className="border-t p-3">
+
+        {/* User + version */}
+        <div className="border-t border-border p-3 space-y-2">
           <NavUser user={session.user} />
+          <p className="px-1 text-[10px] tracking-widest uppercase text-muted-foreground/40">v0.1.0</p>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex flex-1 flex-col overflow-auto">{children}</main>
+      <main className="flex flex-1 flex-col overflow-auto bg-background">{children}</main>
     </div>
   );
 }

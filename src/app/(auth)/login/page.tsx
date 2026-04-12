@@ -4,10 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -29,49 +25,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mb-1 text-3xl">🌊</div>
-          <CardTitle>Sign in to Frothy</CardTitle>
-          <CardDescription>Enter your email and password</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div
+      className="flex min-h-screen flex-col bg-background text-foreground"
+      style={{ fontFamily: "var(--font-mono), monospace" }}
+    >
+      {/* Header */}
+      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+        <span className="text-xs tracking-widest uppercase">FROTHY</span>
+        <Link href="/register" className="text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors">
+          Register →
+        </Link>
+      </header>
+
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-1">— AUTHENTICATION</p>
+            <h1 className="text-xl uppercase tracking-wide font-light">Sign In</h1>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
-              <Input
+              <label htmlFor="email" className="block text-[10px] tracking-widest uppercase text-muted-foreground">
+                Email Address
+              </label>
+              <input
                 id="email"
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-card border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-foreground/50 transition-colors"
+                placeholder="user@example.com"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="password">Password</Label>
-              <Input
+              <label htmlFor="password" className="block text-[10px] tracking-widest uppercase text-muted-foreground">
+                Password
+              </label>
+              <input
                 id="password"
                 type="password"
                 autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-card border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-foreground/50 transition-colors"
+                placeholder="••••••••"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-foreground text-background py-2.5 text-xs tracking-widest uppercase font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {loading ? "Authenticating…" : "Sign In →"}
+            </button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-500">
-            No account?{" "}
-            <Link href="/register" className="font-medium text-primary hover:underline">
-              Register
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+
+          <div className="mt-6 border-t border-border pt-4">
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
+              No account?{" "}
+              <Link href="/register" className="text-foreground hover:underline">
+                Register
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

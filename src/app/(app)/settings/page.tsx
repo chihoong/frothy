@@ -1,24 +1,31 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
   return (
-    <div className="p-6 max-w-xl">
-      <h1 className="mb-6 text-2xl font-bold">Settings</h1>
-      <div className="space-y-3">
-        <Link href="/settings/strava">
-          <Card className="hover:bg-gray-50 cursor-pointer transition-colors">
-            <CardHeader className="pb-1">
-              <CardTitle className="text-base">Strava integration</CardTitle>
-              <CardDescription>
-                Connect Strava to auto-sync your surf sessions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <span className="text-sm text-primary">Configure →</span>
-            </CardContent>
-          </Card>
-        </Link>
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div className="border-b border-border px-6 py-3">
+        <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Configuration</p>
+        <h1 className="text-sm uppercase tracking-wide font-medium">Settings</h1>
+      </div>
+
+      <div className="flex-1 p-6">
+        <div className="max-w-lg space-y-px border border-border">
+          <Link
+            href="/settings/strava"
+            className="flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors group"
+          >
+            <div>
+              <p className="text-xs tracking-wide uppercase font-medium mb-0.5">Strava Integration</p>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
+                Auto-sync surf sessions via webhook
+              </p>
+            </div>
+            <span className="text-[10px] tracking-widest uppercase text-muted-foreground group-hover:text-foreground transition-colors">
+              Configure →
+            </span>
+          </Link>
+        </div>
       </div>
     </div>
   );

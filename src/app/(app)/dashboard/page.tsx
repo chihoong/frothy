@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { mpsToKnots } from "@/analysis/metrics";
 import { formatDuration } from "@/lib/format";
@@ -23,7 +22,7 @@ export default async function DashboardPage() {
     db.surfSession.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
-      take: 5,
+      take: 8,
       select: {
         id: true, title: true, startTime: true, waveCount: true,
         maxSpeedMs: true, durationSeconds: true, processingState: true,
@@ -32,85 +31,101 @@ export default async function DashboardPage() {
   ]);
 
   const stats = [
-    { label: "Sessions", value: aggregate._count.id },
-    { label: "Total waves", value: aggregate._sum.waveCount ?? 0 },
+    { label: "Sessions", value: String(aggregate._count.id), unit: "TOTAL" },
+    { label: "Total Waves", value: String(aggregate._sum.waveCount ?? 0), unit: "COUNT" },
     {
-      label: "Best speed",
-      value: aggregate._max.maxSpeedMs
-        ? `${mpsToKnots(aggregate._max.maxSpeedMs).toFixed(1)} kts`
-        : "—",
+      label: "Best Speed",
+      value: aggregate._max.maxSpeedMs ? mpsToKnots(aggregate._max.maxSpeedMs).toFixed(1) : "—",
+      unit: "KTS MAX",
     },
     {
-      label: "Time in water",
+      label: "Time in Water",
       value: formatDuration(aggregate._sum.durationSeconds ?? 0),
+      unit: "H:MM:SS",
     },
   ];
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div className="border-b border-border px-6 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Overview</p>
+          <h1 className="text-sm uppercase tracking-wide font-medium">Dashboard</h1>
+        </div>
+        <Link
+          href="/upload"
+          className="border border-border px-3 py-1.5 text-[10px] tracking-widest uppercase hover:bg-muted transition-colors"
+        >
+          + Upload GPX
+        </Link>
+      </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-gray-500">
-                {s.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{s.value}</p>
-            </CardContent>
-          </Card>
+      {/* Stats row — matches older design layout */}
+      <div className="grid grid-cols-4 border-b border-border">
+        {stats.map((s, i) => (
+          <div key={s.label} className={`px-6 py-5 ${i < 3 ? "border-r border-border" : ""}`}>
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-1">{s.label}</p>
+            <p className="text-3xl font-light tracking-tight">{s.value}</p>
+            <p className="text-[9px] tracking-widest uppercase text-muted-foreground/60 mt-1">{s.unit}</p>
+          </div>
         ))}
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold">Recent sessions</h2>
-      {recent.length === 0 ? (
-        <p className="text-gray-500">
-          No sessions yet.{" "}
-          <Link href="/upload" className="text-primary hover:underline">
-            Upload your first GPX file
-          </Link>
-          .
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {recent.map((s) => (
-            <Link
-              key={s.id}
-              href={`/sessions/${s.id}`}
-              className="flex items-center justify-between rounded-lg border bg-white px-4 py-3 hover:bg-gray-50"
-            >
-              <div>
-                <p className="font-medium">{s.title ?? "Surf session"}</p>
-                <p className="text-sm text-gray-500">
-                  {new Date(s.startTime).toLocaleDateString("en-AU", {
-                    weekday: "short", day: "numeric", month: "short", year: "numeric",
-                  })}
-                </p>
-              </div>
-              <div className="text-right text-sm">
-                {s.processingState === "COMPLETE" ? (
-                  <>
-                    <p className="font-medium">{s.waveCount} waves</p>
-                    <p className="text-gray-500">
-                      {mpsToKnots(s.maxSpeedMs).toFixed(1)} kts max
-                    </p>
-                  </>
-                ) : s.processingState === "PROCESSING" || s.processingState === "PENDING" ? (
-                  <span className="text-amber-500">Processing…</span>
-                ) : (
-                  <span className="text-red-500">Failed</span>
-                )}
-              </div>
-            </Link>
-          ))}
-          <Link href="/sessions" className="block text-center text-sm text-primary hover:underline pt-2">
-            View all sessions →
+      {/* Recent sessions table */}
+      <div className="flex-1 p-6">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Recent Sessions</p>
+          <Link href="/sessions" className="text-[10px] tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors">
+            View All →
           </Link>
         </div>
-      )}
+
+        {recent.length === 0 ? (
+          <div className="border border-border p-8 text-center">
+            <p className="text-xs text-muted-foreground tracking-wide uppercase">No sessions yet.</p>
+            <Link href="/upload" className="text-xs uppercase tracking-wide hover:underline mt-2 inline-block">
+              Upload your first GPX →
+            </Link>
+          </div>
+        ) : (
+          <div className="border border-border">
+            {/* Table header */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-b border-border bg-muted/40">
+              {["Session", "Date", "Waves", "Top Speed", "Duration"].map((h) => (
+                <div key={h} className="px-4 py-2 text-[9px] tracking-widest uppercase text-muted-foreground">{h}</div>
+              ))}
+            </div>
+            {recent.map((s, i) => (
+              <Link
+                key={s.id}
+                href={`/sessions/${s.id}`}
+                className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] hover:bg-muted/40 transition-colors ${i < recent.length - 1 ? "border-b border-border" : ""}`}
+              >
+                <div className="px-4 py-3 text-xs uppercase tracking-wide truncate">
+                  {s.title ?? "Surf Session"}
+                </div>
+                <div className="px-4 py-3 text-xs text-muted-foreground">
+                  {new Date(s.startTime).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }).toUpperCase()}
+                </div>
+                <div className="px-4 py-3 text-xs">
+                  {s.processingState === "COMPLETE" ? s.waveCount : (
+                    <span className={`text-[10px] tracking-widest uppercase ${s.processingState === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
+                      {s.processingState === "FAILED" ? "Failed" : "Processing"}
+                    </span>
+                  )}
+                </div>
+                <div className="px-4 py-3 text-xs">
+                  {s.processingState === "COMPLETE" ? `${mpsToKnots(s.maxSpeedMs).toFixed(1)} kts` : "—"}
+                </div>
+                <div className="px-4 py-3 text-xs text-muted-foreground">
+                  {s.processingState === "COMPLETE" ? formatDuration(s.durationSeconds) : "—"}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

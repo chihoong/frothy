@@ -2,11 +2,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
 import { SpeedChart } from "@/components/charts/SpeedChart";
-import { WaveList } from "@/components/sessions/WaveList";
 import { mpsToKnots } from "@/analysis/metrics";
 import { formatDuration } from "@/lib/format";
 
@@ -33,118 +31,148 @@ export default async function SessionDetailPage({
 
   if (!surfSession) notFound();
 
-  // Downsample for map (every 5th point)
   const mapTrackpoints = surfSession.trackpoints.filter((_, i) => i % 5 === 0);
 
+  const dateStr = new Date(surfSession.startTime)
+    .toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+    .toUpperCase();
+  const timeStr = new Date(surfSession.startTime)
+    .toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" });
+
   const stats = [
-    { label: "Waves", value: surfSession.waveCount },
-    { label: "Duration", value: formatDuration(surfSession.durationSeconds) },
+    { label: "Total Waves", value: String(surfSession.waveCount ?? "—"), unit: "COUNT" },
+    { label: "Duration", value: formatDuration(surfSession.durationSeconds), unit: "H:MM:SS" },
     {
-      label: "Top speed",
-      value: `${mpsToKnots(surfSession.maxSpeedMs).toFixed(1)} kts`,
+      label: "Top Speed",
+      value: surfSession.maxSpeedMs ? mpsToKnots(surfSession.maxSpeedMs).toFixed(1) : "—",
+      unit: "KTS MAX",
     },
     {
       label: "Distance",
-      value: `${(surfSession.distanceMeters / 1000).toFixed(2)} km`,
+      value: surfSession.distanceMeters ? (surfSession.distanceMeters / 1000).toFixed(2) : "—",
+      unit: "KM TOTAL",
     },
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold">
-            {surfSession.title ?? "Surf session"}
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div className="border-b border-border px-6 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            <Link href="/sessions" className="hover:text-foreground transition-colors">Sessions</Link>
+            {" / "}
+            {dateStr}
+          </p>
+          <h1 className="text-sm uppercase tracking-wide font-medium">
+            {surfSession.title ?? "Surf Session"}
           </h1>
-          <Badge variant="outline">
-            {surfSession.source === "STRAVA" ? "Strava" : "Upload"}
-          </Badge>
         </div>
-        <p className="text-gray-500">
-          {new Date(surfSession.startTime).toLocaleDateString("en-AU", {
-            weekday: "long", day: "numeric", month: "long", year: "numeric",
-          })}
-          {" · "}
-          {new Date(surfSession.startTime).toLocaleTimeString("en-AU", {
-            hour: "2-digit", minute: "2-digit",
-          })}
-        </p>
+        <div className="flex items-center gap-4">
+          {surfSession.centerLat && surfSession.centerLng && (
+            <p className="text-[10px] tracking-widest text-muted-foreground/60 uppercase hidden md:block">
+              {surfSession.centerLat.toFixed(4)}° / {surfSession.centerLng.toFixed(4)}°
+            </p>
+          )}
+          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">{timeStr}</p>
+          <span className={`text-[9px] tracking-widest uppercase px-2 py-0.5 border ${
+            surfSession.source === "STRAVA"
+              ? "border-muted-foreground/40 text-muted-foreground"
+              : "border-border text-muted-foreground"
+          }`}>
+            {surfSession.source === "STRAVA" ? "Strava" : "Upload"}
+          </span>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-gray-500">
-                {s.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{s.value}</p>
-            </CardContent>
-          </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-4 border-b border-border">
+        {stats.map((s, i) => (
+          <div key={s.label} className={`px-6 py-5 ${i < 3 ? "border-r border-border" : ""}`}>
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-1">{s.label}</p>
+            <p className="text-3xl font-light tracking-tight">{s.value}</p>
+            <p className="text-[9px] tracking-widest uppercase text-muted-foreground/60 mt-1">{s.unit}</p>
+          </div>
         ))}
       </div>
 
-      {/* Map */}
-      {mapTrackpoints.length > 0 && surfSession.centerLat && surfSession.centerLng && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Track</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 overflow-hidden rounded-b-lg">
-            <SessionMap
-              trackpoints={mapTrackpoints.map((tp) => ({
-                lat: tp.lat,
-                lng: tp.lng,
-                speedMs: tp.speedMs,
-              }))}
-              waves={surfSession.waves.map((w) => ({
-                startLat: w.startLat,
-                startLng: w.startLng,
-                endLat: w.endLat,
-                endLng: w.endLng,
-              }))}
-              centerLat={surfSession.centerLat}
-              centerLng={surfSession.centerLng}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <div className="flex-1 overflow-auto">
+        {/* Map */}
+        {mapTrackpoints.length > 0 && surfSession.centerLat && surfSession.centerLng && (
+          <div className="border-b border-border">
+            <div className="px-6 py-2 border-b border-border">
+              <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Track</p>
+            </div>
+            <div className="h-72">
+              <SessionMap
+                trackpoints={mapTrackpoints.map((tp) => ({
+                  lat: tp.lat,
+                  lng: tp.lng,
+                  speedMs: tp.speedMs,
+                }))}
+                waves={surfSession.waves.map((w) => ({
+                  startLat: w.startLat,
+                  startLng: w.startLng,
+                  endLat: w.endLat,
+                  endLng: w.endLng,
+                }))}
+                centerLat={surfSession.centerLat}
+                centerLng={surfSession.centerLng}
+              />
+            </div>
+          </div>
+        )}
 
-      {/* Speed chart */}
-      {surfSession.trackpoints.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Speed over time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SpeedChart
-              trackpoints={surfSession.trackpoints.map((tp) => ({
-                recordedAt: tp.recordedAt.toISOString(),
-                speedMs: tp.speedMs,
-              }))}
-              waves={surfSession.waves.map((w) => ({
-                startTime: w.startTime.toISOString(),
-                endTime: w.endTime.toISOString(),
-              }))}
-            />
-          </CardContent>
-        </Card>
-      )}
+        {/* Speed chart */}
+        {surfSession.trackpoints.length > 0 && (
+          <div className="border-b border-border">
+            <div className="px-6 py-2 border-b border-border">
+              <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Speed Profile</p>
+            </div>
+            <div className="px-6 py-4">
+              <SpeedChart
+                trackpoints={surfSession.trackpoints.map((tp) => ({
+                  recordedAt: tp.recordedAt.toISOString(),
+                  speedMs: tp.speedMs,
+                }))}
+                waves={surfSession.waves.map((w) => ({
+                  startTime: w.startTime.toISOString(),
+                  endTime: w.endTime.toISOString(),
+                }))}
+              />
+            </div>
+          </div>
+        )}
 
-      {/* Wave list */}
-      {surfSession.waves.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Waves ({surfSession.waveCount})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WaveList waves={surfSession.waves} />
-          </CardContent>
-        </Card>
-      )}
+        {/* Wave breakdown table */}
+        {surfSession.waves.length > 0 && (
+          <div className="p-6">
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-3">
+              Wave Breakdown — {surfSession.waveCount} Waves
+            </p>
+            <div className="border border-border">
+              {/* Table header */}
+              <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr] border-b border-border bg-muted/40">
+                {["#", "Duration", "Distance", "Top Speed", "Avg Speed"].map((h) => (
+                  <div key={h} className="px-4 py-2 text-[9px] tracking-widest uppercase text-muted-foreground">{h}</div>
+                ))}
+              </div>
+              {surfSession.waves.map((w, i) => (
+                <div
+                  key={w.id}
+                  className={`grid grid-cols-[2rem_1fr_1fr_1fr_1fr] ${i < surfSession.waves.length - 1 ? "border-b border-border" : ""}`}
+                >
+                  <div className="px-4 py-3 text-[10px] text-muted-foreground/60">{w.waveNumber}</div>
+                  <div className="px-4 py-3 text-xs">{w.durationSeconds.toFixed(0)}s</div>
+                  <div className="px-4 py-3 text-xs">{w.distanceMeters.toFixed(0)} m</div>
+                  <div className="px-4 py-3 text-xs font-medium">{mpsToKnots(w.maxSpeedMs).toFixed(1)} kts</div>
+                  <div className="px-4 py-3 text-xs text-muted-foreground">{mpsToKnots(w.avgSpeedMs).toFixed(1)} kts</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

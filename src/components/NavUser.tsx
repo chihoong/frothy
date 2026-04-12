@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth-client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,25 +29,25 @@ export function NavUser({ user }: { user: User }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-100">
-        <Avatar className="h-7 w-7">
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 text-left">
-          <p className="text-sm font-medium leading-none">{user.name}</p>
-          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+      <DropdownMenuTrigger className="flex w-full items-center gap-2 px-1 py-1.5 hover:bg-muted transition-colors border border-transparent hover:border-border">
+        <div className="flex h-6 w-6 items-center justify-center border border-border text-[9px] tracking-widest bg-muted flex-shrink-0">
+          {initials}
+        </div>
+        <div className="flex-1 text-left overflow-hidden">
+          <p className="text-[10px] tracking-wide uppercase font-medium truncate leading-none">{user.name}</p>
+          <p className="text-[9px] text-muted-foreground truncate mt-0.5">{user.email}</p>
         </div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem render={<Link href="/settings" />}>
+      <DropdownMenuContent align="start" className="w-48 bg-card border-border">
+        <DropdownMenuItem render={<Link href="/settings" />} className="text-xs tracking-wide uppercase">
           Settings
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/settings/strava" />}>
-          Strava integration
+        <DropdownMenuItem render={<Link href="/settings/strava" />} className="text-xs tracking-wide uppercase">
+          Strava
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} variant="destructive">
-          Sign out
+        <DropdownMenuItem onClick={handleSignOut} variant="destructive" className="text-xs tracking-wide uppercase">
+          Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

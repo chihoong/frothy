@@ -2,8 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
 type Status = "idle" | "uploading" | "processing" | "done" | "failed";
@@ -13,6 +11,7 @@ export default function UploadPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   async function handleFile(file: File) {
     if (!file.name.match(/\.(gpx|tcx)$/i)) {
@@ -20,6 +19,7 @@ export default function UploadPage() {
       return;
     }
 
+    setFileName(file.name);
     setStatus("uploading");
     const form = new FormData();
     form.append("file", file);
@@ -35,7 +35,6 @@ export default function UploadPage() {
     const { sessionId } = await res.json();
     setStatus("processing");
 
-    // Poll for completion
     const poll = setInterval(async () => {
       const check = await fetch(`/api/upload/${sessionId}/status`);
       const { status: s } = await check.json();
@@ -59,27 +58,31 @@ export default function UploadPage() {
     if (file) handleFile(file);
   }
 
+  const isIdle = status === "idle" || status === "failed";
+
   return (
-    <div className="p-6 max-w-xl">
-      <h1 className="mb-6 text-2xl font-bold">Upload GPX</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload a surf session</CardTitle>
-          <CardDescription>
-            GPX files from any GPS watch or action camera. Max 10 MB.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div className="border-b border-border px-6 py-3">
+        <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Ingest</p>
+        <h1 className="text-sm uppercase tracking-wide font-medium">Upload GPX</h1>
+      </div>
+
+      <div className="flex-1 p-6 flex items-start">
+        <div className="w-full max-w-lg">
+          {/* Drop zone */}
           <div
-            className={`flex h-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
+            className={`relative border transition-colors cursor-pointer ${
               dragging
-                ? "border-primary bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                ? "border-foreground/50 bg-muted/60"
+                : isIdle
+                ? "border-border hover:border-foreground/30 hover:bg-muted/20"
+                : "border-border"
+            } ${!isIdle ? "pointer-events-none" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); if (isIdle) setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
+            onClick={() => isIdle && inputRef.current?.click()}
           >
             <input
               ref={inputRef}
@@ -91,29 +94,90 @@ export default function UploadPage() {
                 if (file) handleFile(file);
               }}
             />
-            {status === "idle" || status === "failed" ? (
-              <>
-                <div className="mb-2 text-3xl">📤</div>
-                <p className="text-sm text-gray-600">
-                  Drop a GPX file here or <span className="text-primary">browse</span>
-                </p>
-              </>
-            ) : status === "uploading" ? (
-              <p className="text-sm text-gray-600">Uploading…</p>
-            ) : status === "processing" ? (
-              <div className="text-center">
-                <div className="mb-2 text-3xl animate-spin">⚙️</div>
-                <p className="text-sm text-gray-600">Detecting waves…</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="mb-2 text-3xl">✅</div>
-                <p className="text-sm text-gray-600">Done! Redirecting…</p>
-              </div>
-            )}
+
+            <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
+              {status === "idle" && (
+                <>
+                  <div className="w-10 h-10 border border-border flex items-center justify-center mb-5">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground">
+                      <path d="M8 1v10M4 5l4-4 4 4M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <p className="text-xs tracking-widest uppercase text-muted-foreground mb-1">
+                    Drop GPX file here
+                  </p>
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground/40">
+                    or click to browse — max 10 MB
+                  </p>
+                </>
+              )}
+
+              {status === "failed" && (
+                <>
+                  <div className="w-10 h-10 border border-destructive/50 flex items-center justify-center mb-5">
+                    <span className="text-destructive text-sm">✕</span>
+                  </div>
+                  <p className="text-xs tracking-widest uppercase text-destructive mb-1">Upload Failed</p>
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground/40">
+                    Click to try again
+                  </p>
+                </>
+              )}
+
+              {status === "uploading" && (
+                <>
+                  <div className="w-10 h-10 border border-border flex items-center justify-center mb-5 animate-pulse">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground">
+                      <path d="M8 1v10M4 5l4-4 4 4M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <p className="text-xs tracking-widest uppercase text-muted-foreground mb-1">Uploading</p>
+                  {fileName && (
+                    <p className="text-[10px] text-muted-foreground/40 truncate max-w-xs">{fileName}</p>
+                  )}
+                </>
+              )}
+
+              {status === "processing" && (
+                <>
+                  <div className="w-10 h-10 border border-border flex items-center justify-center mb-5">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground animate-spin" style={{ animationDuration: "2s" }}>
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4"/>
+                    </svg>
+                  </div>
+                  <p className="text-xs tracking-widest uppercase text-muted-foreground mb-1">Detecting Waves</p>
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground/40">
+                    Analysing GPS track…
+                  </p>
+                </>
+              )}
+
+              {status === "done" && (
+                <>
+                  <div className="w-10 h-10 border border-border flex items-center justify-center mb-5">
+                    <span className="text-foreground text-sm">✓</span>
+                  </div>
+                  <p className="text-xs tracking-widest uppercase text-muted-foreground">Complete — Redirecting</p>
+                </>
+              )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Spec row */}
+          <div className="mt-4 grid grid-cols-3 border border-border">
+            {[
+              { label: "Format", value: "GPX / TCX" },
+              { label: "Max Size", value: "10 MB" },
+              { label: "Source", value: "Any GPS Device" },
+            ].map((item, i) => (
+              <div key={item.label} className={`px-4 py-3 ${i < 2 ? "border-r border-border" : ""}`}>
+                <p className="text-[9px] tracking-widest uppercase text-muted-foreground/60 mb-0.5">{item.label}</p>
+                <p className="text-[10px] tracking-widest uppercase">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
