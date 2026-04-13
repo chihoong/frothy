@@ -21,6 +21,7 @@ model User {
   accounts     Account[]
   surfSessions SurfSession[]
   stravaToken  StravaToken?
+  boards       Board[]
 }
 
 model Session {
@@ -141,6 +142,39 @@ model Wave {
   session         SurfSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+}
+
+// ─── Quiver ───────────────────────────────────────────────────────────────────
+
+model Board {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  shaper      String?
+  boardType   BoardType @default(SHORTBOARD)
+  lengthStr   String?
+  widthStr    String?
+  thicknessStr String?
+  volumeL     Float?
+  purchasedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+enum BoardType {
+  SHORTBOARD
+  FISH
+  FUNBOARD
+  MID_LENGTH
+  LONGBOARD
+  GUN
+  FOIL
+  OTHER
 }
 
 enum SessionSource {
