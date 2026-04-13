@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { mpsToKnots } from "@/analysis/metrics";
 import { formatDuration } from "@/lib/format";
+import { RetryButton } from "@/components/sessions/RetryButton";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -108,11 +109,14 @@ export default async function DashboardPage() {
                 <div className="px-4 py-3 text-xs text-muted-foreground">
                   {new Date(s.startTime).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }).toUpperCase()}
                 </div>
-                <div className="px-4 py-3 text-xs">
+                <div className="px-4 py-3 text-xs flex items-center gap-2">
                   {s.processingState === "COMPLETE" ? s.waveCount : (
-                    <span className={`text-[10px] tracking-widest uppercase ${s.processingState === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
-                      {s.processingState === "FAILED" ? "Failed" : "Processing"}
-                    </span>
+                    <>
+                      <span className={`text-[10px] tracking-widest uppercase ${s.processingState === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
+                        {s.processingState === "FAILED" ? "Failed" : "Processing"}
+                      </span>
+                      <RetryButton sessionId={s.id} />
+                    </>
                   )}
                 </div>
                 <div className="px-4 py-3 text-xs">
