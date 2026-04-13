@@ -14,9 +14,7 @@ export async function processUpload(data: ProcessUploadJob) {
 
   try {
     const fileBuffer = await downloadFile(rawFileKey);
-    const xmlString = fileBuffer.toString("utf-8");
-    console.log(`[processUpload] file size: ${fileBuffer.length} bytes, first 200 chars: ${JSON.stringify(xmlString.slice(0, 200))}`);
-    const parsed = parseGpxBuffer(xmlString);
+    const parsed = parseGpxBuffer(fileBuffer.toString("utf-8"));
     const waves = detectWaves(parsed.trackpoints);
 
     await db.$transaction(async (tx) => {

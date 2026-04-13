@@ -1,4 +1,5 @@
-import { parseGPX } from "@we-gold/gpxjs";
+import { parseGPXWithCustomParser } from "@we-gold/gpxjs";
+import { DOMParser } from "linkedom";
 import type { Extensions } from "@we-gold/gpxjs";
 import { haversine } from "./metrics";
 
@@ -35,8 +36,11 @@ function getExtensionNumber(ext: Extensions, key: string): number | null {
   return null;
 }
 
+const domParser = new DOMParser();
+
 export function parseGpxBuffer(xmlString: string): ParsedSession {
-  const [gpx, error] = parseGPX(xmlString);
+  const parseMethod = (xml: string) => domParser.parseFromString(xml, "text/xml");
+  const [gpx, error] = parseGPXWithCustomParser(xmlString, parseMethod as never);
   if (error) throw new Error(`GPX parse error: ${error.message}`);
 
   const track = gpx.tracks[0];
