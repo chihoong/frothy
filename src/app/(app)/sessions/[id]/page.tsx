@@ -2,9 +2,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
 import { WaveDetectionSettings } from "@/components/sessions/WaveDetectionSettings";
+import { SessionHeader } from "@/components/sessions/SessionHeader";
 import { formatDuration, formatSpeed, speedUnitLabel, type SpeedUnit } from "@/lib/format";
 import { sustainedMaxSpeedMs } from "@/analysis/metrics";
 
@@ -41,12 +41,6 @@ export default async function SessionDetailPage({
   // Derive max speed requiring 5s of sustained data to filter GPS spikes
   const maxSpeedMs = sustainedMaxSpeedMs(surfSession.trackpoints) || surfSession.maxSpeedMs;
 
-  const dateStr = new Date(surfSession.startTime)
-    .toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
-    .toUpperCase();
-  const timeStr = new Date(surfSession.startTime)
-    .toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" });
-
   const stats = [
     { label: "Total Waves", value: String(surfSession.waveCount ?? "—"), unit: "COUNT" },
     { label: "Duration", value: formatDuration(surfSession.durationSeconds), unit: "H:MM:SS" },
@@ -65,33 +59,15 @@ export default async function SessionDetailPage({
   return (
     <div className="flex flex-col min-h-full">
       {/* Page header */}
-      <div className="border-b border-border px-6 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
-            <Link href="/sessions" className="hover:text-foreground transition-colors">Sessions</Link>
-            {" / "}
-            {dateStr}
-          </p>
-          <h1 className="text-sm uppercase tracking-wide font-medium">
-            {surfSession.title ?? "Surf Session"}
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {surfSession.centerLat && surfSession.centerLng && (
-            <p className="text-[10px] tracking-widest text-muted-foreground/60 uppercase hidden md:block">
-              {surfSession.centerLat.toFixed(4)}° / {surfSession.centerLng.toFixed(4)}°
-            </p>
-          )}
-          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">{timeStr}</p>
-          <span className={`text-[9px] tracking-widest uppercase px-2 py-0.5 border ${
-            surfSession.source === "STRAVA"
-              ? "border-muted-foreground/40 text-muted-foreground"
-              : "border-border text-muted-foreground"
-          }`}>
-            {surfSession.source === "STRAVA" ? "Strava" : "Upload"}
-          </span>
-        </div>
-      </div>
+      <SessionHeader
+        sessionId={surfSession.id}
+        title={surfSession.title}
+        startTime={surfSession.startTime.toISOString()}
+        endTime={surfSession.endTime.toISOString()}
+        source={surfSession.source}
+        centerLat={surfSession.centerLat}
+        centerLng={surfSession.centerLng}
+      />
 
       {/* Wave detection tuning */}
       {surfSession.processingState === "COMPLETE" && (

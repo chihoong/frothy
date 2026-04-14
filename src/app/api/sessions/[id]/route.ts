@@ -40,6 +40,47 @@ export async function GET(
   });
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+
+  const surfSession = await db.surfSession.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true, startTime: true, endTime: true },
+  });
+  if (!surfSession) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const body = await req.json();
+  const update: Record<string, unknown> = {};
+
+  if (typeof body.title === "string") {
+    update.title = body.title.trim() || null;
+  }
+
+  if (typeof body.startTime === "string") {
+    const newStart = new Date(body.startTime);
+    if (isNaN(newStart.getTime())) {
+      return NextResponse.json({ error: "Invalid startTime" }, { status: 400 });
+    }
+    const delta = newStart.getTime() - surfSession.startTime.getTime();
+    update.startTime = newStart;
+    update.endTime = new Date(surfSession.endTime.getTime() + delta);
+  }
+
+  const updated = await db.surfSession.update({
+    where: { id },
+    data: update,
+    select: { id: true, title: true, startTime: true, endTime: true },
+  });
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
