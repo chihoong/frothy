@@ -16,6 +16,7 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  speedUnit     SpeedUnit @default(KNOTS)
 
   sessions     Session[]
   accounts     Account[]
@@ -164,6 +165,12 @@ model Board {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+enum SpeedUnit {
+  KNOTS
+  KMH
+  MPH
 }
 
 enum BoardType {

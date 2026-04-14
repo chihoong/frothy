@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SpeedUnitSelector } from "@/components/settings/SpeedUnitSelector";
 
 export default function SettingsPage() {
   return (
@@ -10,21 +11,28 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex-1 p-6">
-        <div className="max-w-lg space-y-px border border-border">
-          <Link
-            href="/settings/strava"
-            className="flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors group"
-          >
-            <div>
-              <p className="text-xs tracking-wide uppercase font-medium mb-0.5">Strava Integration</p>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
-                Auto-sync surf sessions via webhook
-              </p>
-            </div>
-            <span className="text-[10px] tracking-widest uppercase text-muted-foreground group-hover:text-foreground transition-colors">
-              Configure →
-            </span>
-          </Link>
+        <div className="max-w-lg space-y-6">
+          <div className="space-y-px border border-border">
+            <Link
+              href="/settings/strava"
+              className="flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors group"
+            >
+              <div>
+                <p className="text-xs tracking-wide uppercase font-medium mb-0.5">Strava Integration</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
+                  Auto-sync surf sessions via webhook
+                </p>
+              </div>
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground group-hover:text-foreground transition-colors">
+                Configure →
+              </span>
+            </Link>
+          </div>
+
+          <div>
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-3">Units</p>
+            <SpeedUnitSelector />
+          </div>
         </div>
       </div>
     </div>

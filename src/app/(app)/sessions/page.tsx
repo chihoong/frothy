@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { mpsToKnots } from "@/analysis/metrics";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatSpeed, type SpeedUnit } from "@/lib/format";
 import { RetryButton } from "@/components/sessions/RetryButton";
 
 export default async function SessionsPage({
@@ -25,7 +24,7 @@ export default async function SessionsPage({
     ...(source && { source }),
   };
 
-  const [sessions, total] = await Promise.all([
+  const [sessions, total, userPrefs] = await Promise.all([
     db.surfSession.findMany({
       where,
       orderBy: { startTime: "desc" },
@@ -38,7 +37,10 @@ export default async function SessionsPage({
       },
     }),
     db.surfSession.count({ where }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { speedUnit: true } }),
   ]);
+
+  const unit = (userPrefs?.speedUnit ?? "KNOTS") as SpeedUnit;
 
   const totalPages = Math.ceil(total / limit);
 
@@ -121,7 +123,7 @@ export default async function SessionsPage({
                     )}
                   </div>
                   <div className="px-4 py-3 text-xs">
-                    {s.processingState === "COMPLETE" ? `${mpsToKnots(s.maxSpeedMs).toFixed(1)} kts` : "—"}
+                    {s.processingState === "COMPLETE" ? formatSpeed(s.maxSpeedMs, unit) : "—"}
                   </div>
                   <div className="px-4 py-3 text-xs text-muted-foreground">
                     {s.processingState === "COMPLETE" ? formatDuration(s.durationSeconds) : "—"}

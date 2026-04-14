@@ -1,6 +1,6 @@
 "use client";
 
-import { mpsToKnots } from "@/analysis/metrics";
+import { formatSpeed, type SpeedUnit } from "@/lib/format";
 
 type Wave = {
   id: string;
@@ -11,7 +11,7 @@ type Wave = {
   avgSpeedMs: number;
 };
 
-export function WaveList({ waves }: { waves: Wave[] }) {
+export function WaveList({ waves, unit }: { waves: Wave[]; unit: SpeedUnit }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -31,9 +31,9 @@ export function WaveList({ waves }: { waves: Wave[] }) {
               <td className="py-2 pr-4">{w.durationSeconds.toFixed(0)}s</td>
               <td className="py-2 pr-4">{w.distanceMeters.toFixed(0)} m</td>
               <td className="py-2 pr-4 font-medium text-blue-600">
-                {mpsToKnots(w.maxSpeedMs).toFixed(1)} kts
+                {formatSpeed(w.maxSpeedMs, unit)}
               </td>
-              <td className="py-2">{mpsToKnots(w.avgSpeedMs).toFixed(1)} kts</td>
+              <td className="py-2">{formatSpeed(w.avgSpeedMs, unit)}</td>
             </tr>
           ))}
         </tbody>

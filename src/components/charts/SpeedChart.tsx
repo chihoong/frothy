@@ -9,19 +9,26 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { mpsToKnots } from "@/analysis/metrics";
+import { speedUnitLabel, type SpeedUnit } from "@/lib/format";
 
 type Props = {
   trackpoints: { recordedAt: string; speedMs: number | null }[];
   waves: { startTime: string; endTime: string }[];
+  unit: SpeedUnit;
 };
 
-export function SpeedChart({ trackpoints, waves }: Props) {
+function convertSpeed(mps: number, unit: SpeedUnit): number {
+  if (unit === "KMH") return mps * 3.6;
+  if (unit === "MPH") return mps * 2.23694;
+  return mps * 1.94384;
+}
+
+export function SpeedChart({ trackpoints, waves, unit }: Props) {
   const startMs = new Date(trackpoints[0]?.recordedAt ?? 0).getTime();
 
   const data = trackpoints.map((tp) => ({
     t: parseFloat(((new Date(tp.recordedAt).getTime() - startMs) / 60000).toFixed(2)),
-    speed: tp.speedMs != null ? parseFloat(mpsToKnots(tp.speedMs).toFixed(2)) : undefined,
+    speed: tp.speedMs != null ? parseFloat(convertSpeed(tp.speedMs, unit).toFixed(2)) : undefined,
   }));
 
   const waveLines = waves.map((w) => ({
@@ -45,13 +52,13 @@ export function SpeedChart({ trackpoints, waves }: Props) {
           tick={{ fontSize: 11 }}
         />
         <YAxis
-          tickFormatter={(v: number) => `${v} kts`}
+          tickFormatter={(v: number) => `${v} ${speedUnitLabel(unit)}`}
           tick={{ fontSize: 11 }}
           width={55}
         />
         <Tooltip
           formatter={(value: unknown) => {
-            if (typeof value === "number") return [`${value} kts`, "Speed"];
+            if (typeof value === "number") return [`${value} ${speedUnitLabel(unit)}`, "Speed"];
             return ["—", "Speed"];
           }}
           labelFormatter={(label: unknown) => {

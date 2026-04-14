@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { mpsToKnots } from "@/analysis/metrics";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatSpeed, speedUnitLabel, type SpeedUnit } from "@/lib/format";
 import { RetryButton } from "@/components/sessions/RetryButton";
 
 export default async function DashboardPage() {
@@ -13,7 +12,7 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  const [aggregate, recent] = await Promise.all([
+  const [aggregate, recent, userPrefs] = await Promise.all([
     db.surfSession.aggregate({
       where: { userId, processingState: "COMPLETE" },
       _count: { id: true },
@@ -29,15 +28,18 @@ export default async function DashboardPage() {
         maxSpeedMs: true, durationSeconds: true, processingState: true,
       },
     }),
+    db.user.findUnique({ where: { id: userId }, select: { speedUnit: true } }),
   ]);
+
+  const unit = (userPrefs?.speedUnit ?? "KNOTS") as SpeedUnit;
 
   const stats = [
     { label: "Sessions", value: String(aggregate._count.id), unit: "TOTAL" },
     { label: "Total Waves", value: String(aggregate._sum.waveCount ?? 0), unit: "COUNT" },
     {
       label: "Best Speed",
-      value: aggregate._max.maxSpeedMs ? mpsToKnots(aggregate._max.maxSpeedMs).toFixed(1) : "—",
-      unit: "KTS MAX",
+      value: aggregate._max.maxSpeedMs ? formatSpeed(aggregate._max.maxSpeedMs, unit).split(" ")[0] : "—",
+      unit: `${speedUnitLabel(unit).toUpperCase()} MAX`,
     },
     {
       label: "Time in Water",
@@ -120,7 +122,7 @@ export default async function DashboardPage() {
                   )}
                 </div>
                 <div className="px-4 py-3 text-xs">
-                  {s.processingState === "COMPLETE" ? `${mpsToKnots(s.maxSpeedMs).toFixed(1)} kts` : "—"}
+                  {s.processingState === "COMPLETE" ? formatSpeed(s.maxSpeedMs, unit) : "—"}
                 </div>
                 <div className="px-4 py-3 text-xs text-muted-foreground">
                   {s.processingState === "COMPLETE" ? formatDuration(s.durationSeconds) : "—"}

@@ -6,8 +6,7 @@ import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
 import { SpeedChart } from "@/components/charts/SpeedChart";
 import { WaveDetectionSettings } from "@/components/sessions/WaveDetectionSettings";
-import { mpsToKnots } from "@/analysis/metrics";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatSpeed, speedUnitLabel, type SpeedUnit } from "@/lib/format";
 
 export default async function SessionDetailPage({
   params,
@@ -19,18 +18,23 @@ export default async function SessionDetailPage({
 
   const { id } = await params;
 
-  const surfSession = await db.surfSession.findFirst({
-    where: { id, userId: session.user.id },
-    include: {
-      waves: { orderBy: { waveNumber: "asc" } },
-      trackpoints: {
-        orderBy: { recordedAt: "asc" },
-        select: { lat: true, lng: true, speedMs: true, recordedAt: true },
+  const [surfSession, userPrefs] = await Promise.all([
+    db.surfSession.findFirst({
+      where: { id, userId: session.user.id },
+      include: {
+        waves: { orderBy: { waveNumber: "asc" } },
+        trackpoints: {
+          orderBy: { recordedAt: "asc" },
+          select: { lat: true, lng: true, speedMs: true, recordedAt: true },
+        },
       },
-    },
-  });
+    }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { speedUnit: true } }),
+  ]);
 
   if (!surfSession) notFound();
+
+  const unit = (userPrefs?.speedUnit ?? "KNOTS") as SpeedUnit;
 
   const mapTrackpoints = surfSession.trackpoints.filter((_, i) => i % 5 === 0);
 
@@ -45,8 +49,8 @@ export default async function SessionDetailPage({
     { label: "Duration", value: formatDuration(surfSession.durationSeconds), unit: "H:MM:SS" },
     {
       label: "Top Speed",
-      value: surfSession.maxSpeedMs ? mpsToKnots(surfSession.maxSpeedMs).toFixed(1) : "—",
-      unit: "KTS MAX",
+      value: surfSession.maxSpeedMs ? formatSpeed(surfSession.maxSpeedMs, unit).split(" ")[0] : "—",
+      unit: `${speedUnitLabel(unit).toUpperCase()} MAX`,
     },
     {
       label: "Distance",
@@ -140,6 +144,7 @@ export default async function SessionDetailPage({
                   startTime: w.startTime.toISOString(),
                   endTime: w.endTime.toISOString(),
                 }))}
+                unit={unit}
               />
             </div>
           </div>
@@ -166,8 +171,8 @@ export default async function SessionDetailPage({
                   <div className="px-4 py-3 text-[10px] text-muted-foreground/60">{w.waveNumber}</div>
                   <div className="px-4 py-3 text-xs">{w.durationSeconds.toFixed(0)}s</div>
                   <div className="px-4 py-3 text-xs">{w.distanceMeters.toFixed(0)} m</div>
-                  <div className="px-4 py-3 text-xs font-medium">{mpsToKnots(w.maxSpeedMs).toFixed(1)} kts</div>
-                  <div className="px-4 py-3 text-xs text-muted-foreground">{mpsToKnots(w.avgSpeedMs).toFixed(1)} kts</div>
+                  <div className="px-4 py-3 text-xs font-medium">{formatSpeed(w.maxSpeedMs, unit)}</div>
+                  <div className="px-4 py-3 text-xs text-muted-foreground">{formatSpeed(w.avgSpeedMs, unit)}</div>
                 </div>
               ))}
             </div>
