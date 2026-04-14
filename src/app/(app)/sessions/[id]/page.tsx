@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
 import { SpeedChart } from "@/components/charts/SpeedChart";
+import { WaveDetectionSettings } from "@/components/sessions/WaveDetectionSettings";
 import { mpsToKnots } from "@/analysis/metrics";
 import { formatDuration } from "@/lib/format";
 
@@ -171,6 +172,10 @@ export default async function SessionDetailPage({
               ))}
             </div>
           </div>
+        )}
+        {/* Wave detection tuning */}
+        {surfSession.processingState === "COMPLETE" && (
+          <WaveDetectionSettings sessionId={surfSession.id} />
         )}
       </div>
     </div>

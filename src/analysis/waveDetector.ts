@@ -9,6 +9,16 @@ export const MAX_WAVE_DURATION_S = 90;
 export const MIN_WAVE_DISTANCE_M = 15;
 export const MIN_WAVE_GAP_S = 20;
 
+export type WaveDetectionParams = {
+  speedThresholdMs?: number;
+  bearingToleranceDeg?: number;
+  maxGapSeconds?: number;
+  minWaveDurationS?: number;
+  maxWaveDurationS?: number;
+  minWaveDistanceM?: number;
+  minWaveGapS?: number;
+};
+
 export type DetectedWave = {
   waveNumber: number;
   startTime: Date;
@@ -29,14 +39,27 @@ type Segment = {
   endIdx: number;
 };
 
-export function detectWaves(trackpoints: NormalizedTrackpoint[]): DetectedWave[] {
+export function detectWaves(
+  trackpoints: NormalizedTrackpoint[],
+  params: WaveDetectionParams = {}
+): DetectedWave[] {
   if (trackpoints.length < 2) return [];
+
+  const p = {
+    speedThresholdMs: params.speedThresholdMs ?? WAVE_SPEED_THRESHOLD_MS,
+    bearingToleranceDeg: params.bearingToleranceDeg ?? BEARING_TOLERANCE_DEG,
+    maxGapSeconds: params.maxGapSeconds ?? MAX_GAP_SECONDS,
+    minWaveDurationS: params.minWaveDurationS ?? MIN_WAVE_DURATION_S,
+    maxWaveDurationS: params.maxWaveDurationS ?? MAX_WAVE_DURATION_S,
+    minWaveDistanceM: params.minWaveDistanceM ?? MIN_WAVE_DISTANCE_M,
+    minWaveGapS: params.minWaveGapS ?? MIN_WAVE_GAP_S,
+  };
 
   // Precompute per-gap speed and bearing
   const gaps = computeGaps(trackpoints);
 
   // Two-pass: first without bearing filter to infer shore bearing
-  const candidateSegments = findSegments(trackpoints, gaps, null);
+  const candidateSegments = findSegments(trackpoints, gaps, null, p);
   if (candidateSegments.length === 0) return [];
 
   const candidateBearings = candidateSegments.map((seg) =>
@@ -45,9 +68,9 @@ export function detectWaves(trackpoints: NormalizedTrackpoint[]): DetectedWave[]
   const shoreBearing = medianBearing(candidateBearings.filter((b): b is number => b !== null));
 
   // Second pass with bearing filter
-  const segments = findSegments(trackpoints, gaps, shoreBearing);
-  const merged = mergeNearbySegments(trackpoints, segments);
-  const filtered = filterSegments(trackpoints, gaps, merged);
+  const segments = findSegments(trackpoints, gaps, shoreBearing, p);
+  const merged = mergeNearbySegments(trackpoints, segments, p);
+  const filtered = filterSegments(trackpoints, gaps, merged, p);
 
   return filtered.map((seg, i) => buildWave(trackpoints, gaps, seg, i + 1));
 }
@@ -71,10 +94,13 @@ function computeGaps(pts: NormalizedTrackpoint[]): Gap[] {
   return gaps;
 }
 
+type ResolvedParams = Required<WaveDetectionParams>;
+
 function findSegments(
   pts: NormalizedTrackpoint[],
   gaps: Gap[],
-  shoreBearing: number | null
+  shoreBearing: number | null,
+  p: ResolvedParams
 ): Segment[] {
   const segments: Segment[] = [];
   let segStart: number | null = null;
@@ -82,10 +108,10 @@ function findSegments(
 
   for (let i = 0; i < gaps.length; i++) {
     const gap = gaps[i];
-    const speedOk = gap.speedMs >= WAVE_SPEED_THRESHOLD_MS;
+    const speedOk = gap.speedMs >= p.speedThresholdMs;
     const bearingOk =
       shoreBearing === null ||
-      bearingDiff(gap.bearing, shoreBearing) <= BEARING_TOLERANCE_DEG;
+      bearingDiff(gap.bearing, shoreBearing) <= p.bearingToleranceDeg;
 
     if (speedOk && bearingOk) {
       if (segStart === null) segStart = i;
@@ -95,7 +121,7 @@ function findSegments(
         (pts[i].recordedAt.getTime() -
           pts[lastQualifiedIdx + 1].recordedAt.getTime()) /
         1000;
-      if (gapSince > MAX_GAP_SECONDS) {
+      if (gapSince > p.maxGapSeconds) {
         segments.push({ startIdx: segStart, endIdx: lastQualifiedIdx + 1 });
         segStart = null;
       }
@@ -111,7 +137,8 @@ function findSegments(
 
 function mergeNearbySegments(
   pts: NormalizedTrackpoint[],
-  segments: Segment[]
+  segments: Segment[],
+  p: ResolvedParams
 ): Segment[] {
   if (segments.length <= 1) return segments;
   const merged: Segment[] = [segments[0]];
@@ -121,7 +148,7 @@ function mergeNearbySegments(
       (pts[segments[i].startIdx].recordedAt.getTime() -
         pts[last.endIdx].recordedAt.getTime()) /
       1000;
-    if (gapS <= MIN_WAVE_GAP_S) {
+    if (gapS <= p.minWaveGapS) {
       merged[merged.length - 1] = { startIdx: last.startIdx, endIdx: segments[i].endIdx };
     } else {
       merged.push(segments[i]);
@@ -133,19 +160,20 @@ function mergeNearbySegments(
 function filterSegments(
   pts: NormalizedTrackpoint[],
   gaps: Gap[],
-  segments: Segment[]
+  segments: Segment[],
+  p: ResolvedParams
 ): Segment[] {
   return segments.filter((seg) => {
     const startPt = pts[seg.startIdx];
     const endPt = pts[seg.endIdx];
     const durationS = (endPt.recordedAt.getTime() - startPt.recordedAt.getTime()) / 1000;
-    if (durationS < MIN_WAVE_DURATION_S || durationS > MAX_WAVE_DURATION_S) return false;
+    if (durationS < p.minWaveDurationS || durationS > p.maxWaveDurationS) return false;
 
     let dist = 0;
     for (let i = seg.startIdx; i < seg.endIdx; i++) {
       dist += gaps[i]?.distanceM ?? 0;
     }
-    return dist >= MIN_WAVE_DISTANCE_M;
+    return dist >= p.minWaveDistanceM;
   });
 }
 
