@@ -84,7 +84,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 border-t border-border pt-4">
+          <div className="mt-6 border-t border-border pt-4 space-y-3">
+            <button
+              type="button"
+              onClick={() => signIn.social({ provider: "google", callbackURL: "/dashboard" })}
+              className="w-full bg-card border border-border py-2.5 text-xs tracking-widest uppercase text-foreground hover:border-foreground/50 transition-colors"
+            >
+              Continue with Google
+            </button>
             <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
               No account?{" "}
               <Link href="/register" className="text-foreground hover:underline">

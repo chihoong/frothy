@@ -16,7 +16,7 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  speedUnit     SpeedUnit @default(KNOTS)
+  speedUnit     SpeedUnit @default(KMH)
 
   sessions     Session[]
   accounts     Account[]

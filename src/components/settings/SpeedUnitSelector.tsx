@@ -10,7 +10,7 @@ const OPTIONS: { value: SpeedUnit; label: string; description: string }[] = [
 ];
 
 export function SpeedUnitSelector() {
-  const [current, setCurrent] = useState<SpeedUnit>("KNOTS");
+  const [current, setCurrent] = useState<SpeedUnit>("KMH");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {

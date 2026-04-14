@@ -40,7 +40,7 @@ export default async function SessionsPage({
     db.user.findUnique({ where: { id: session.user.id }, select: { speedUnit: true } }),
   ]);
 
-  const unit = (userPrefs?.speedUnit ?? "KNOTS") as SpeedUnit;
+  const unit = (userPrefs?.speedUnit ?? "KMH") as SpeedUnit;
 
   const totalPages = Math.ceil(total / limit);
 

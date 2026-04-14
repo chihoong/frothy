@@ -53,7 +53,6 @@ export function parseGpxBuffer(xmlString: string): ParsedSession {
   let totalDistance = 0;
   let totalSpeed = 0;
   let speedCount = 0;
-  let maxSpeedMs = 0;
 
   let minLat = Infinity, maxLat = -Infinity;
   let minLng = Infinity, maxLng = -Infinity;
@@ -95,7 +94,6 @@ export function parseGpxBuffer(xmlString: string): ParsedSession {
     if (speedMs !== null && speedMs >= 0) {
       totalSpeed += speedMs;
       speedCount++;
-      maxSpeedMs = Math.max(maxSpeedMs, speedMs);
     }
 
     let heartRate: number | null = null;
@@ -115,6 +113,12 @@ export function parseGpxBuffer(xmlString: string): ParsedSession {
 
   // Apply 3-point median filter to smooth speed noise
   const smoothed = applyMedianFilter(trackpoints);
+
+  // Derive max speed from smoothed data to avoid GPS spike inflation
+  const maxSpeedMs = smoothed.reduce(
+    (max, tp) => (tp.speedMs != null ? Math.max(max, tp.speedMs) : max),
+    0
+  );
 
   const startTime = smoothed[0].recordedAt;
   const endTime = smoothed[smoothed.length - 1].recordedAt;

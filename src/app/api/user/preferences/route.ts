@@ -15,7 +15,7 @@ export async function GET() {
     select: { speedUnit: true },
   });
 
-  return NextResponse.json({ speedUnit: user?.speedUnit ?? "KNOTS" });
+  return NextResponse.json({ speedUnit: user?.speedUnit ?? "KMH" });
 }
 
 export async function PATCH(req: Request) {

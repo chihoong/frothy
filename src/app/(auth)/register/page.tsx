@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signUp } from "@/lib/auth-client";
+import { signIn, signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
@@ -101,7 +101,14 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <div className="mt-6 border-t border-border pt-4">
+          <div className="mt-6 border-t border-border pt-4 space-y-3">
+            <button
+              type="button"
+              onClick={() => signIn.social({ provider: "google", callbackURL: "/dashboard" })}
+              className="w-full bg-card border border-border py-2.5 text-xs tracking-widest uppercase text-foreground hover:border-foreground/50 transition-colors"
+            >
+              Continue with Google
+            </button>
             <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
               Have an account?{" "}
               <Link href="/login" className="text-foreground hover:underline">

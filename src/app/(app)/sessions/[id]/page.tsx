@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
-import { SpeedChart } from "@/components/charts/SpeedChart";
 import { WaveDetectionSettings } from "@/components/sessions/WaveDetectionSettings";
 import { formatDuration, formatSpeed, speedUnitLabel, type SpeedUnit } from "@/lib/format";
 
@@ -34,7 +33,7 @@ export default async function SessionDetailPage({
 
   if (!surfSession) notFound();
 
-  const unit = (userPrefs?.speedUnit ?? "KNOTS") as SpeedUnit;
+  const unit = (userPrefs?.speedUnit ?? "KMH") as SpeedUnit;
 
   const mapTrackpoints = surfSession.trackpoints.filter((_, i) => i % 5 === 0);
 
@@ -90,6 +89,11 @@ export default async function SessionDetailPage({
         </div>
       </div>
 
+      {/* Wave detection tuning */}
+      {surfSession.processingState === "COMPLETE" && (
+        <WaveDetectionSettings sessionId={surfSession.id} />
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-4 border-b border-border">
         {stats.map((s, i) => (
@@ -128,27 +132,6 @@ export default async function SessionDetailPage({
           </div>
         )}
 
-        {/* Speed chart */}
-        {surfSession.trackpoints.length > 0 && (
-          <div className="border-b border-border">
-            <div className="px-6 py-2 border-b border-border">
-              <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Speed Profile</p>
-            </div>
-            <div className="px-6 py-4">
-              <SpeedChart
-                trackpoints={surfSession.trackpoints.map((tp) => ({
-                  recordedAt: tp.recordedAt.toISOString(),
-                  speedMs: tp.speedMs,
-                }))}
-                waves={surfSession.waves.map((w) => ({
-                  startTime: w.startTime.toISOString(),
-                  endTime: w.endTime.toISOString(),
-                }))}
-                unit={unit}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Wave breakdown table */}
         {surfSession.waves.length > 0 && (
@@ -177,10 +160,6 @@ export default async function SessionDetailPage({
               ))}
             </div>
           </div>
-        )}
-        {/* Wave detection tuning */}
-        {surfSession.processingState === "COMPLETE" && (
-          <WaveDetectionSettings sessionId={surfSession.id} />
         )}
       </div>
     </div>
