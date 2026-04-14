@@ -26,13 +26,12 @@ export async function POST(
 
   const body = await req.json().catch(() => ({}));
   const waveParams: WaveDetectionParams = {
-    speedThresholdMs: body.speedThresholdMs,
-    bearingToleranceDeg: body.bearingToleranceDeg,
+    startSpeedMs: body.startSpeedMs,
+    sustainSpeedMs: body.sustainSpeedMs,
+    peakSpeedMs: body.peakSpeedMs,
     maxGapSeconds: body.maxGapSeconds,
     minWaveDurationS: body.minWaveDurationS,
-    maxWaveDurationS: body.maxWaveDurationS,
     minWaveDistanceM: body.minWaveDistanceM,
-    minWaveGapS: body.minWaveGapS,
   };
 
   // Fetch all trackpoints (undownsampled) for detection

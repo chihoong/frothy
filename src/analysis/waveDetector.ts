@@ -1,22 +1,27 @@
 import { NormalizedTrackpoint } from "./gpx";
 import { haversine, bearing, bearingDiff, medianBearing } from "./metrics";
 
-export const WAVE_SPEED_THRESHOLD_MS = 2.5;
-export const BEARING_TOLERANCE_DEG = 60;
+// Defaults (all speeds in m/s)
+export const START_SPEED_MS = 12 / 3.6;   // 12 km/h — minimum speed to begin a wave
+export const SUSTAIN_SPEED_MS = 10 / 3.6; // 10 km/h — minimum speed to sustain a wave
+export const PEAK_SPEED_MS = 15 / 3.6;    // 15 km/h — minimum peak speed a wave must reach
 export const MAX_GAP_SECONDS = 3;
-export const MIN_WAVE_DURATION_S = 4;
+export const MIN_WAVE_DURATION_S = 7;
 export const MAX_WAVE_DURATION_S = 90;
-export const MIN_WAVE_DISTANCE_M = 15;
+export const MIN_WAVE_DISTANCE_M = 35;
 export const MIN_WAVE_GAP_S = 20;
+export const BEARING_TOLERANCE_DEG = 60;
 
 export type WaveDetectionParams = {
-  speedThresholdMs?: number;
-  bearingToleranceDeg?: number;
+  startSpeedMs?: number;
+  sustainSpeedMs?: number;
+  peakSpeedMs?: number;
   maxGapSeconds?: number;
   minWaveDurationS?: number;
   maxWaveDurationS?: number;
   minWaveDistanceM?: number;
   minWaveGapS?: number;
+  bearingToleranceDeg?: number;
 };
 
 export type DetectedWave = {
@@ -39,35 +44,38 @@ type Segment = {
   endIdx: number;
 };
 
+type ResolvedParams = Required<WaveDetectionParams>;
+
 export function detectWaves(
   trackpoints: NormalizedTrackpoint[],
   params: WaveDetectionParams = {}
 ): DetectedWave[] {
   if (trackpoints.length < 2) return [];
 
-  const p = {
-    speedThresholdMs: params.speedThresholdMs ?? WAVE_SPEED_THRESHOLD_MS,
-    bearingToleranceDeg: params.bearingToleranceDeg ?? BEARING_TOLERANCE_DEG,
+  const p: ResolvedParams = {
+    startSpeedMs: params.startSpeedMs ?? START_SPEED_MS,
+    sustainSpeedMs: params.sustainSpeedMs ?? SUSTAIN_SPEED_MS,
+    peakSpeedMs: params.peakSpeedMs ?? PEAK_SPEED_MS,
     maxGapSeconds: params.maxGapSeconds ?? MAX_GAP_SECONDS,
     minWaveDurationS: params.minWaveDurationS ?? MIN_WAVE_DURATION_S,
     maxWaveDurationS: params.maxWaveDurationS ?? MAX_WAVE_DURATION_S,
     minWaveDistanceM: params.minWaveDistanceM ?? MIN_WAVE_DISTANCE_M,
     minWaveGapS: params.minWaveGapS ?? MIN_WAVE_GAP_S,
+    bearingToleranceDeg: params.bearingToleranceDeg ?? BEARING_TOLERANCE_DEG,
   };
 
-  // Precompute per-gap speed and bearing
   const gaps = computeGaps(trackpoints);
 
-  // Two-pass: first without bearing filter to infer shore bearing
+  // First pass: no bearing filter, infer shore direction
   const candidateSegments = findSegments(trackpoints, gaps, null, p);
   if (candidateSegments.length === 0) return [];
 
   const candidateBearings = candidateSegments.map((seg) =>
-    computeSegmentBearing(trackpoints, gaps, seg)
+    computeSegmentBearing(trackpoints, seg)
   );
   const shoreBearing = medianBearing(candidateBearings.filter((b): b is number => b !== null));
 
-  // Second pass with bearing filter
+  // Second pass: with bearing filter
   const segments = findSegments(trackpoints, gaps, shoreBearing, p);
   const merged = mergeNearbySegments(trackpoints, segments, p);
   const filtered = filterSegments(trackpoints, gaps, merged, p);
@@ -94,8 +102,6 @@ function computeGaps(pts: NormalizedTrackpoint[]): Gap[] {
   return gaps;
 }
 
-type ResolvedParams = Required<WaveDetectionParams>;
-
 function findSegments(
   pts: NormalizedTrackpoint[],
   gaps: Gap[],
@@ -108,10 +114,15 @@ function findSegments(
 
   for (let i = 0; i < gaps.length; i++) {
     const gap = gaps[i];
-    const speedOk = gap.speedMs >= p.speedThresholdMs;
     const bearingOk =
       shoreBearing === null ||
       bearingDiff(gap.bearing, shoreBearing) <= p.bearingToleranceDeg;
+
+    // Hysteresis: higher threshold to start a wave, lower to sustain it
+    const speedOk =
+      segStart === null
+        ? gap.speedMs >= p.startSpeedMs
+        : gap.speedMs >= p.sustainSpeedMs;
 
     if (speedOk && bearingOk) {
       if (segStart === null) segStart = i;
@@ -170,16 +181,19 @@ function filterSegments(
     if (durationS < p.minWaveDurationS || durationS > p.maxWaveDurationS) return false;
 
     let dist = 0;
+    let maxSpeed = 0;
     for (let i = seg.startIdx; i < seg.endIdx; i++) {
       dist += gaps[i]?.distanceM ?? 0;
+      maxSpeed = Math.max(maxSpeed, gaps[i]?.speedMs ?? 0);
     }
-    return dist >= p.minWaveDistanceM;
+    if (dist < p.minWaveDistanceM) return false;
+    if (maxSpeed < p.peakSpeedMs) return false;
+    return true;
   });
 }
 
 function computeSegmentBearing(
   pts: NormalizedTrackpoint[],
-  gaps: Gap[],
   seg: Segment
 ): number | null {
   const startPt = pts[seg.startIdx];

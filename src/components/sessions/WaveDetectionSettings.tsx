@@ -3,54 +3,64 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  WAVE_SPEED_THRESHOLD_MS,
-  BEARING_TOLERANCE_DEG,
+  START_SPEED_MS,
+  SUSTAIN_SPEED_MS,
+  PEAK_SPEED_MS,
   MAX_GAP_SECONDS,
   MIN_WAVE_DURATION_S,
-  MAX_WAVE_DURATION_S,
   MIN_WAVE_DISTANCE_M,
-  MIN_WAVE_GAP_S,
 } from "@/analysis/waveDetector";
 
+// UI state stored in display units (km/h, s, m)
 type Params = {
-  speedThresholdMs: number;
-  bearingToleranceDeg: number;
-  maxGapSeconds: number;
-  minWaveDurationS: number;
-  maxWaveDurationS: number;
-  minWaveDistanceM: number;
-  minWaveGapS: number;
+  startSpeedKmh: number;
+  sustainSpeedKmh: number;
+  peakSpeedKmh: number;
+  minDurationS: number;
+  minDistanceM: number;
+  gapToleranceS: number;
 };
 
 const DEFAULTS: Params = {
-  speedThresholdMs: WAVE_SPEED_THRESHOLD_MS,
-  bearingToleranceDeg: BEARING_TOLERANCE_DEG,
-  maxGapSeconds: MAX_GAP_SECONDS,
-  minWaveDurationS: MIN_WAVE_DURATION_S,
-  maxWaveDurationS: MAX_WAVE_DURATION_S,
-  minWaveDistanceM: MIN_WAVE_DISTANCE_M,
-  minWaveGapS: MIN_WAVE_GAP_S,
+  startSpeedKmh: Math.round(START_SPEED_MS * 3.6),
+  sustainSpeedKmh: Math.round(SUSTAIN_SPEED_MS * 3.6),
+  peakSpeedKmh: Math.round(PEAK_SPEED_MS * 3.6),
+  minDurationS: MIN_WAVE_DURATION_S,
+  minDistanceM: MIN_WAVE_DISTANCE_M,
+  gapToleranceS: MAX_GAP_SECONDS,
 };
 
-const FIELDS: {
+type SliderField = {
   key: keyof Params;
   label: string;
   unit: string;
   min: number;
   max: number;
   step: number;
-}[] = [
-  { key: "speedThresholdMs", label: "Speed Threshold", unit: "m/s", min: 0.5, max: 6, step: 0.1 },
-  { key: "minWaveDurationS", label: "Min Duration", unit: "s", min: 1, max: 30, step: 1 },
-  { key: "maxWaveDurationS", label: "Max Duration", unit: "s", min: 20, max: 180, step: 5 },
-  { key: "minWaveDistanceM", label: "Min Distance", unit: "m", min: 5, max: 100, step: 5 },
-  { key: "bearingToleranceDeg", label: "Bearing Tolerance", unit: "°", min: 15, max: 180, step: 5 },
-  { key: "minWaveGapS", label: "Min Wave Gap", unit: "s", min: 5, max: 60, step: 5 },
-  { key: "maxGapSeconds", label: "Max In-Wave Gap", unit: "s", min: 1, max: 15, step: 1 },
+};
+
+const FIELDS: SliderField[] = [
+  { key: "startSpeedKmh",   label: "Min Start Speed",   unit: "km/h", min: 3,  max: 30,  step: 1 },
+  { key: "sustainSpeedKmh", label: "Min Sustain Speed", unit: "km/h", min: 3,  max: 25,  step: 1 },
+  { key: "peakSpeedKmh",    label: "Min Peak Speed",    unit: "km/h", min: 5,  max: 40,  step: 1 },
+  { key: "minDurationS",    label: "Min Duration",      unit: "s",    min: 2,  max: 30,  step: 1 },
+  { key: "minDistanceM",    label: "Min Distance",      unit: "m",    min: 5,  max: 100, step: 5 },
+  { key: "gapToleranceS",   label: "Gap Tolerance",     unit: "s",    min: 1,  max: 10,  step: 1 },
 ];
 
+function formatValue(value: number, unit: string): string {
+  if (unit === "km/h") return `${value}km/h`;
+  if (unit === "s") return `${value}s`;
+  if (unit === "m") return `${value}m`;
+  return String(value);
+}
+
+function sliderBg(value: number, min: number, max: number): string {
+  const pct = ((value - min) / (max - min)) * 100;
+  return `linear-gradient(to right, #4ade80 0%, #4ade80 ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`;
+}
+
 export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
-  const [open, setOpen] = useState(false);
   const [params, setParams] = useState<Params>(DEFAULTS);
   const [result, setResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -61,13 +71,20 @@ export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
     setResult(null);
   }
 
-  function apply() {
+  function reanalyse() {
     setResult(null);
     startTransition(async () => {
       const res = await fetch(`/api/sessions/${sessionId}/reprocess`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          startSpeedMs: params.startSpeedKmh / 3.6,
+          sustainSpeedMs: params.sustainSpeedKmh / 3.6,
+          peakSpeedMs: params.peakSpeedKmh / 3.6,
+          minWaveDurationS: params.minDurationS,
+          minWaveDistanceM: params.minDistanceM,
+          maxGapSeconds: params.gapToleranceS,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -75,83 +92,91 @@ export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({}));
-        setResult(data.error ?? "Error applying settings");
+        setResult(data.error ?? "Error");
       }
     });
   }
 
   return (
-    <div className="border-t border-border">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-6 py-2 flex items-center justify-between text-left hover:bg-muted/30 transition-colors"
-      >
-        <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
-          Wave Detection Settings
-        </p>
-        <span className="text-[9px] tracking-widest uppercase text-muted-foreground/60">
-          {open ? "Close" : "Adjust"}
-        </span>
-      </button>
+    <>
+      <style>{`
+        .wave-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 2px;
+          border-radius: 0;
+          outline: none;
+          cursor: pointer;
+          width: 100%;
+        }
+        .wave-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #4ade80;
+          cursor: pointer;
+        }
+        .wave-slider::-moz-range-thumb {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #4ade80;
+          border: none;
+          cursor: pointer;
+        }
+      `}</style>
 
-      {open && (
-        <div className="border-t border-border px-6 py-5">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {FIELDS.map(({ key, label, unit, min, max, step }) => (
-              <div key={key}>
-                <div className="flex items-baseline justify-between mb-2">
-                  <label className="text-[9px] tracking-widest uppercase text-muted-foreground">
-                    {label}
-                  </label>
-                  <span className="text-xs font-light tabular-nums">
-                    {params[key].toFixed(step < 1 ? 1 : 0)}{" "}
-                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">
-                      {unit}
-                    </span>
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={params[key]}
-                  onChange={(e) =>
-                    setParams((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                  }
-                  className="w-full h-px appearance-none bg-border cursor-pointer accent-foreground"
-                />
-                <div className="flex justify-between mt-1">
-                  <span className="text-[9px] text-muted-foreground/40 tabular-nums">{min}{unit}</span>
-                  <span className="text-[9px] text-muted-foreground/40 tabular-nums">{max}{unit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-4 mt-6">
-            <button
-              onClick={apply}
-              disabled={isPending}
-              className="text-[10px] tracking-widest uppercase px-4 py-2 border border-foreground bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-40"
-            >
-              {isPending ? "Applying…" : "Apply"}
-            </button>
-            <button
-              onClick={reset}
-              disabled={isPending}
-              className="text-[10px] tracking-widest uppercase px-4 py-2 border border-border hover:border-foreground/40 transition-colors disabled:opacity-40"
-            >
-              Reset
-            </button>
-            {result && (
-              <p className="text-[10px] tracking-widest uppercase text-muted-foreground ml-auto">
-                {result}
+      <div className="border-b border-border px-6 py-3 flex items-center gap-4">
+        {FIELDS.map(({ key, label, unit, min, max, step }, i) => (
+          <div key={key} className={`flex items-center gap-3 min-w-0 flex-1 ${i > 0 ? "border-l border-border pl-4" : ""}`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-[8px] tracking-widest uppercase text-muted-foreground mb-1.5 whitespace-nowrap">
+                {label}
               </p>
-            )}
+              <input
+                type="range"
+                className="wave-slider"
+                min={min}
+                max={max}
+                step={step}
+                value={params[key]}
+                style={{ background: sliderBg(params[key], min, max) }}
+                onChange={(e) =>
+                  setParams((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                }
+                disabled={isPending}
+              />
+            </div>
+            <span className="text-[9px] tracking-widest uppercase text-muted-foreground whitespace-nowrap tabular-nums shrink-0">
+              {formatValue(params[key], unit)}
+            </span>
           </div>
+        ))}
+
+        <div className="flex items-center gap-2 shrink-0 border-l border-border pl-4">
+          {result && (
+            <span className="text-[8px] tracking-widest uppercase text-muted-foreground whitespace-nowrap mr-2">
+              {result}
+            </span>
+          )}
+          <button
+            onClick={reset}
+            disabled={isPending}
+            className="text-[8px] tracking-widest uppercase px-3 py-1.5 border border-border hover:border-foreground/40 transition-colors disabled:opacity-40 whitespace-nowrap"
+          >
+            Reset Defaults
+          </button>
+          <button
+            onClick={reanalyse}
+            disabled={isPending}
+            className="text-[8px] tracking-widest uppercase px-3 py-1.5 border border-border hover:border-foreground/40 transition-colors disabled:opacity-40 whitespace-nowrap"
+          >
+            {isPending ? "Analysing…" : "Re-Analyse"}
+          </button>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
