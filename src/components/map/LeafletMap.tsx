@@ -35,7 +35,7 @@ export default function LeafletMap({ trackpoints, waves, centerLat, centerLng }:
     <MapContainer
       center={[centerLat, centerLng]}
       zoom={14}
-      style={{ height: 384, width: "100%" }}
+      style={{ height: "100%", width: "100%" }}
       scrollWheelZoom={false}
     >
       <TileLayer

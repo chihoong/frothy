@@ -92,7 +92,7 @@ export default async function SessionDetailPage({
             <div className="px-6 py-2 border-b border-border">
               <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Track</p>
             </div>
-            <div className="h-72 isolate">
+            <div className="h-72 isolate overflow-hidden">
               <SessionMap
                 trackpoints={mapTrackpoints.map((tp) => ({
                   lat: tp.lat,
