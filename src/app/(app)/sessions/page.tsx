@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatDuration, formatSpeed, type SpeedUnit } from "@/lib/format";
+import { sustainedMaxSpeedMs } from "@/analysis/metrics";
 import { RetryButton } from "@/components/sessions/RetryButton";
 
 export default async function SessionsPage({
@@ -34,6 +35,10 @@ export default async function SessionsPage({
         id: true, title: true, source: true, startTime: true,
         durationSeconds: true, distanceMeters: true, maxSpeedMs: true,
         waveCount: true, processingState: true,
+        trackpoints: {
+          select: { recordedAt: true, speedMs: true },
+          orderBy: { recordedAt: "asc" as const },
+        },
       },
     }),
     db.surfSession.count({ where }),
@@ -123,7 +128,9 @@ export default async function SessionsPage({
                     )}
                   </div>
                   <div className="px-4 py-3 text-xs">
-                    {s.processingState === "COMPLETE" ? formatSpeed(s.maxSpeedMs, unit) : "—"}
+                    {s.processingState === "COMPLETE"
+                      ? formatSpeed(sustainedMaxSpeedMs(s.trackpoints) || s.maxSpeedMs, unit)
+                      : "—"}
                   </div>
                   <div className="px-4 py-3 text-xs text-muted-foreground">
                     {s.processingState === "COMPLETE" ? formatDuration(s.durationSeconds) : "—"}
