@@ -61,6 +61,7 @@ function sliderBg(value: number, min: number, max: number): string {
 }
 
 export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
+  const [open, setOpen] = useState(false);
   const [params, setParams] = useState<Params>(DEFAULTS);
   const [result, setResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -128,7 +129,19 @@ export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
         }
       `}</style>
 
-      <div className="border-b border-border px-6 py-3 flex items-center gap-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full border-b border-border px-6 py-2 flex items-center justify-between hover:bg-muted/20 transition-colors"
+      >
+        <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
+          Wave Detection
+        </p>
+        <span className="text-[9px] tracking-widest uppercase text-muted-foreground/50">
+          {open ? "Hide" : "Tune"}
+        </span>
+      </button>
+
+      {open && <div className="border-b border-border px-6 py-3 flex items-center gap-4">
         {FIELDS.map(({ key, label, unit, min, max, step }, i) => (
           <div key={key} className={`flex items-center gap-3 min-w-0 flex-1 ${i > 0 ? "border-l border-border pl-4" : ""}`}>
             <div className="min-w-0 flex-1">
@@ -176,7 +189,7 @@ export function WaveDetectionSettings({ sessionId }: { sessionId: string }) {
             {isPending ? "Analysing…" : "Re-Analyse"}
           </button>
         </div>
-      </div>
+      </div>}
     </>
   );
 }

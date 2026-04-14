@@ -37,6 +37,12 @@ export default async function SessionDetailPage({
 
   const mapTrackpoints = surfSession.trackpoints.filter((_, i) => i % 5 === 0);
 
+  // Derive max speed from stored (already smoothed) trackpoints to avoid GPS spike inflation
+  const maxSpeedMs = surfSession.trackpoints.reduce(
+    (max, tp) => (tp.speedMs != null ? Math.max(max, tp.speedMs) : max),
+    0
+  ) || surfSession.maxSpeedMs;
+
   const dateStr = new Date(surfSession.startTime)
     .toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
     .toUpperCase();
@@ -48,7 +54,7 @@ export default async function SessionDetailPage({
     { label: "Duration", value: formatDuration(surfSession.durationSeconds), unit: "H:MM:SS" },
     {
       label: "Top Speed",
-      value: surfSession.maxSpeedMs ? formatSpeed(surfSession.maxSpeedMs, unit).split(" ")[0] : "—",
+      value: maxSpeedMs ? formatSpeed(maxSpeedMs, unit).split(" ")[0] : "—",
       unit: `${speedUnitLabel(unit).toUpperCase()} MAX`,
     },
     {
