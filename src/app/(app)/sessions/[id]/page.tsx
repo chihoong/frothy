@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SessionMap } from "@/components/map/SessionMap";
 import { WaveDetectionSettings } from "@/components/sessions/WaveDetectionSettings";
 import { formatDuration, formatSpeed, speedUnitLabel, type SpeedUnit } from "@/lib/format";
+import { sustainedMaxSpeedMs } from "@/analysis/metrics";
 
 export default async function SessionDetailPage({
   params,
@@ -37,11 +38,8 @@ export default async function SessionDetailPage({
 
   const mapTrackpoints = surfSession.trackpoints.filter((_, i) => i % 5 === 0);
 
-  // Derive max speed from stored (already smoothed) trackpoints to avoid GPS spike inflation
-  const maxSpeedMs = surfSession.trackpoints.reduce(
-    (max, tp) => (tp.speedMs != null ? Math.max(max, tp.speedMs) : max),
-    0
-  ) || surfSession.maxSpeedMs;
+  // Derive max speed requiring 5s of sustained data to filter GPS spikes
+  const maxSpeedMs = sustainedMaxSpeedMs(surfSession.trackpoints) || surfSession.maxSpeedMs;
 
   const dateStr = new Date(surfSession.startTime)
     .toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
@@ -65,7 +63,7 @@ export default async function SessionDetailPage({
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-full">
       {/* Page header */}
       <div className="border-b border-border px-6 py-3 flex items-center justify-between">
         <div>
@@ -111,7 +109,7 @@ export default async function SessionDetailPage({
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div>
         {/* Map */}
         {mapTrackpoints.length > 0 && surfSession.centerLat && surfSession.centerLng && (
           <div className="border-b border-border">

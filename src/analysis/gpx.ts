@@ -1,7 +1,7 @@
 import { parseGPXWithCustomParser } from "@we-gold/gpxjs";
 import { DOMParser } from "linkedom";
 import type { Extensions } from "@we-gold/gpxjs";
-import { haversine } from "./metrics";
+import { haversine, sustainedMaxSpeedMs } from "./metrics";
 
 export type NormalizedTrackpoint = {
   recordedAt: Date;
@@ -114,11 +114,8 @@ export function parseGpxBuffer(xmlString: string): ParsedSession {
   // Apply 3-point median filter to smooth speed noise
   const smoothed = applyMedianFilter(trackpoints);
 
-  // Derive max speed from smoothed data to avoid GPS spike inflation
-  const maxSpeedMs = smoothed.reduce(
-    (max, tp) => (tp.speedMs != null ? Math.max(max, tp.speedMs) : max),
-    0
-  );
+  // Derive max speed from smoothed data, requiring a 5-second sustained window
+  const maxSpeedMs = sustainedMaxSpeedMs(smoothed);
 
   const startTime = smoothed[0].recordedAt;
   const endTime = smoothed[smoothed.length - 1].recordedAt;

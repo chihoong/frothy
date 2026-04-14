@@ -49,6 +49,36 @@ export function mpsToKmh(mps: number): number {
   return mps * 3.6;
 }
 
+/**
+ * Returns the highest average speed sustained over any window of at least
+ * minWindowSeconds. This filters out sub-second GPS spikes that would
+ * otherwise inflate the top speed figure.
+ */
+export function sustainedMaxSpeedMs(
+  trackpoints: Array<{ recordedAt: Date; speedMs: number | null }>,
+  minWindowSeconds = 5
+): number {
+  let maxAvg = 0;
+  for (let i = 0; i < trackpoints.length; i++) {
+    const t0 = trackpoints[i].recordedAt.getTime();
+    let sum = 0;
+    let count = 0;
+    for (let j = i; j < trackpoints.length; j++) {
+      const elapsed = (trackpoints[j].recordedAt.getTime() - t0) / 1000;
+      const s = trackpoints[j].speedMs;
+      if (s != null) {
+        sum += s;
+        count++;
+      }
+      if (elapsed >= minWindowSeconds) {
+        if (count > 0) maxAvg = Math.max(maxAvg, sum / count);
+        break;
+      }
+    }
+  }
+  return maxAvg;
+}
+
 export function mpsToKnots(mps: number): number {
   return mps * 1.94384;
 }
