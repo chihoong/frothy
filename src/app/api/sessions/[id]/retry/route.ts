@@ -23,11 +23,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     data: { processingState: "PENDING", processingError: null },
   });
 
-  await uploadQueue.add("process-upload", {
-    sessionId: id,
-    userId: session.user.id,
-    rawFileKey: surfSession.rawFileKey,
-  });
+  await uploadQueue.add(
+    "process-upload",
+    {
+      sessionId: id,
+      userId: session.user.id,
+      rawFileKey: surfSession.rawFileKey,
+    },
+    { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+  );
 
   return NextResponse.json({ ok: true });
 }
