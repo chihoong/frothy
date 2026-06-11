@@ -1,5 +1,6 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
+import { db } from "@/lib/db";
 import { processUpload } from "./jobs/processUpload";
 import { stravaSync } from "./jobs/stravaSync";
 
@@ -27,8 +28,29 @@ const stravaWorker = new Worker(
   { connection, concurrency: 5 }
 );
 
-uploadWorker.on("failed", (job, err) => {
-  console.error(`Upload job ${job?.id} failed:`, err.message);
+uploadWorker.on("failed", async (job, err) => {
+  console.error(`Upload job ${job?.id} failed:`, err?.message);
+  // Safety net: if the process was killed (OOM/redeploy) before processUpload's
+  // own catch could run, processUpload leaves the session in PROCESSING. Once
+  // BullMQ exhausts retries it moves the job to failed and emits this event on a
+  // live worker — mark the session FAILED so it surfaces a RETRY instead of
+  // hanging in PROCESSING forever.
+  const attempts = job?.opts?.attempts ?? 1;
+  const exhausted = !job || job.attemptsMade >= attempts;
+  const sessionId = job?.data?.sessionId;
+  if (exhausted && sessionId) {
+    try {
+      await db.surfSession.update({
+        where: { id: sessionId },
+        data: {
+          processingState: "FAILED",
+          processingError: err?.message || "Worker terminated during processing",
+        },
+      });
+    } catch (e) {
+      console.error(`Could not mark session ${sessionId} FAILED:`, e);
+    }
+  }
 });
 
 stravaWorker.on("failed", (job, err) => {
