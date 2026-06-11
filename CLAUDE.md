@@ -5,5 +5,7 @@
 - **Frontend** — hosted on Vercel at https://frothy.vercel.app (project: `frothy`)
 - **Backend** — hosted on Railway (project: `frothy`)
 
-> Note: the Railway `worker` service does **not** auto-deploy on push/merge to `main`.
-> Deploy it manually with `railway up -s worker` (or trigger a redeploy in the Railway dashboard).
+> The Railway `worker` service auto-deploys from GitHub on push to `main`, scoped by watch
+> patterns (`src/workers/**`, `src/analysis/**`, `src/lib/**`, `prisma/**`, `package.json`,
+> `package-lock.json`, `tsconfig*.json`, `railway.toml`) — frontend-only changes don't redeploy it.
+> Manual deploy if needed: `railway up -s worker`.
